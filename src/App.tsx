@@ -7,7 +7,7 @@ import ShopPage from './pages/ShopPage';
 import ProductPage from './pages/ProductPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
-import AdminPage from './pages/AdminPage';
+import EnhancedAdminPage from './pages/EnhancedAdminPage';
 import { Product } from './types';
 
 function App() {
@@ -31,7 +31,7 @@ function App() {
 
   // Check if current page is admin
   if (currentPage === 'admin') {
-    return <AdminPage />;
+    return <EnhancedAdminPage />;
   }
 
   return (
