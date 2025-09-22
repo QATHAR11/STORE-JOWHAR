@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Filter, Grid, List } from 'lucide-react';
-import { products, categories } from '../data/mockData';
+import { useSupabaseData } from '../hooks/useSupabaseData';
 import { Product } from '../types';
 import ProductCard from '../components/ProductCard';
 
@@ -9,6 +9,9 @@ interface ShopPageProps {
 }
 
 const ShopPage: React.FC<ShopPageProps> = ({ onViewProduct }) => {
+  const { data: products, loading } = useSupabaseData('products');
+  const { data: categories } = useSupabaseData('categories');
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [sortBy, setSortBy] = useState<'name' | 'price-low' | 'price-high'>('name');
@@ -116,7 +119,12 @@ const ShopPage: React.FC<ShopPageProps> = ({ onViewProduct }) => {
         </div>
 
         {/* Products Grid */}
-        {filteredAndSortedProducts.length > 0 ? (
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-2 border-black border-t-transparent mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading products...</p>
+          </div>
+        ) : filteredAndSortedProducts.length > 0 ? (
           <div className={`grid gap-6 ${
             viewMode === 'grid' 
               ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 

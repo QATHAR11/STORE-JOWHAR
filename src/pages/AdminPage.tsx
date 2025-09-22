@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
+import { useSupabaseData } from '../hooks/useSupabaseData';
 import { 
   Package, 
   Image, 
@@ -20,36 +22,47 @@ import {
   AlertCircle,
   X
 } from 'lucide-react';
-import { products, banners, brands, navigationConfig, categories } from '../data/mockData';
-import { Product, Banner, Brand, NavigationItem } from '../types';
+import ProductForm from '../components/admin/ProductForm';
+import type { Database } from '../lib/supabase';
+
+type Product = Database['public']['Tables']['products']['Row'];
+type Brand = Database['public']['Tables']['brands']['Row'];
+type Category = Database['public']['Tables']['categories']['Row'];
 
 const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'products' | 'banners' | 'navigation' | 'brands' | 'orders' | 'analytics'>('products');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
-  const [loading, setLoading] = useState(false);
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  
+  const { user, loading: authLoading, signIn, signOut } = useSupabaseAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setLoginLoading(true);
+    setLoginError(null);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    if (loginForm.username === 'admin' && loginForm.password === 'jowhara2024') {
-      setIsAuthenticated(true);
-    } else {
-      alert('Invalid credentials');
+    const { error } = await signIn(loginForm.email, loginForm.password);
+    if (error) {
+      setLoginError(error.message);
     }
-    setLoading(false);
+    setLoginLoading(false);
   };
 
   const handleLogout = () => {
-    setIsAuthenticated(false);
-    setLoginForm({ username: '', password: '' });
+    signOut();
+    setLoginForm({ email: '', password: '' });
   };
 
-  if (!isAuthenticated) {
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-2 border-black border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
@@ -68,16 +81,16 @@ const AdminPage: React.FC = () => {
           <form onSubmit={handleLogin} className="p-8 space-y-6">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Username
+                Email
               </label>
               <input
-                type="text"
-                value={loginForm.username}
-                onChange={(e) => setLoginForm(prev => ({ ...prev, username: e.target.value }))}
+                type="email"
+                value={loginForm.email}
+                onChange={(e) => setLoginForm(prev => ({ ...prev, email: e.target.value }))}
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
-                placeholder="Enter username"
+                placeholder="Enter email"
                 required
-                disabled={loading}
+                disabled={loginLoading}
               />
             </div>
             
@@ -92,16 +105,22 @@ const AdminPage: React.FC = () => {
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
                 placeholder="Enter password"
                 required
-                disabled={loading}
+                disabled={loginLoading}
               />
             </div>
             
+            {loginError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                {loginError}
+              </div>
+            )}
+            
             <button
               type="submit"
-              disabled={loading}
+              disabled={loginLoading}
               className="w-full bg-black text-white py-3 px-4 rounded-lg font-semibold hover:bg-gray-800 transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
-              {loading ? (
+              {loginLoading ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
                   Signing in...
@@ -114,9 +133,8 @@ const AdminPage: React.FC = () => {
           
           <div className="px-8 pb-8">
             <div className="bg-gray-50 rounded-lg p-4 text-center text-sm text-gray-600">
-              <strong>Demo Credentials:</strong><br />
-              Username: <code>admin</code><br />
-              Password: <code>jowhara2024</code>
+              <strong>Admin Access:</strong><br />
+              Use your Supabase admin credentials to sign in
             </div>
           </div>
         </div>
@@ -125,12 +143,12 @@ const AdminPage: React.FC = () => {
   }
 
   const tabs = [
-    { id: 'products', name: 'Products', icon: <Package className="h-5 w-5" />, count: products.length },
-    { id: 'banners', name: 'Banners', icon: <Image className="h-5 w-5" />, count: banners.length },
-    { id: 'navigation', name: 'Navigation', icon: <Navigation className="h-5 w-5" />, count: navigationConfig.length },
-    { id: 'brands', name: 'Brands', icon: <Award className="h-5 w-5" />, count: brands.length },
+    { id: 'products', name: 'Products', icon: <Package className="h-5 w-5" /> },
+    { id: 'banners', name: 'Banners', icon: <Image className="h-5 w-5" /> },
+    { id: 'navigation', name: 'Navigation', icon: <Navigation className="h-5 w-5" /> },
+    { id: 'brands', name: 'Brands', icon: <Award className="h-5 w-5" /> },
     { id: 'orders', name: 'Orders', icon: <ShoppingCart className="h-5 w-5" />, count: 24 },
-    { id: 'analytics', name: 'Analytics', icon: <BarChart3 className="h-5 w-5" />, count: null }
+    { id: 'analytics', name: 'Analytics', icon: <BarChart3 className="h-5 w-5" /> }
   ];
 
   return (
@@ -147,7 +165,7 @@ const AdminPage: React.FC = () => {
                 <h1 className="text-xl font-serif font-bold text-black">
                   Jowhara Admin
                 </h1>
-                <p className="text-xs text-gray-500 -mt-1">Management Panel</p>
+                <p className="text-xs text-gray-500 -mt-1">Welcome, {user.email}</p>
               </div>
             </div>
             <button
@@ -180,7 +198,7 @@ const AdminPage: React.FC = () => {
                       {tab.icon}
                       <span className="font-medium">{tab.name}</span>
                     </div>
-                    {tab.count && (
+                    {tab.count !== undefined && (
                       <span className={`text-xs px-2 py-1 rounded-full ${
                         activeTab === tab.id ? 'bg-white text-black' : 'bg-gray-200 text-gray-600'
                       }`}>
@@ -212,12 +230,51 @@ const AdminPage: React.FC = () => {
 const ProductsTab: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [showForm, setShowForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | undefined>();
+
+  const { data: products, loading: productsLoading, insert, update, remove } = useSupabaseData('products', {
+    realtime: true
+  });
+  
+  const { data: categories } = useSupabaseData('categories');
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
+    const matchesCategory = selectedCategory === 'all' || product.category.toLowerCase() === selectedCategory.toLowerCase();
     return matchesSearch && matchesCategory;
   });
+
+  const handleSubmit = async (data: any) => {
+    try {
+      if (editingProduct) {
+        await update(editingProduct.id, data);
+      } else {
+        await insert(data);
+      }
+      setShowForm(false);
+      setEditingProduct(undefined);
+    } catch (error) {
+      console.error('Error saving product:', error);
+      alert('Error saving product. Please try again.');
+    }
+  };
+
+  const handleEdit = (product: Product) => {
+    setEditingProduct(product);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to delete this product?')) {
+      try {
+        await remove(id);
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        alert('Error deleting product. Please try again.');
+      }
+    }
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm">
@@ -228,7 +285,10 @@ const ProductsTab: React.FC = () => {
             <h2 className="text-2xl font-bold text-gray-900">Products</h2>
             <p className="text-gray-600 mt-1">Manage your product catalog</p>
           </div>
-          <button className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors flex items-center space-x-2">
+          <button 
+            onClick={() => setShowForm(true)}
+            className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors flex items-center space-x-2"
+          >
             <Plus className="h-4 w-4" />
             <span>Add Product</span>
           </button>
@@ -254,8 +314,8 @@ const ProductsTab: React.FC = () => {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
           >
             <option value="all">All Categories</option>
-            {categories.map(cat => (
-              <option key={cat.id} value={cat.name}>{cat.name}</option>
+            {categories.map(category => (
+              <option key={category.id} value={category.name}>{category.name}</option>
             ))}
           </select>
         </div>
@@ -275,11 +335,28 @@ const ProductsTab: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {filteredProducts.map((product) => (
+            {productsLoading ? (
+              <tr>
+                <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  Loading products...
+                </td>
+              </tr>
+            ) : filteredProducts.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  No products found
+                </td>
+              </tr>
+            ) : (
+              filteredProducts.map((product) => (
               <tr key={product.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4">
                   <div className="flex items-center">
-                    <img src={product.images[0]} alt={product.name} className="h-12 w-12 rounded-lg object-cover" />
+                    <img 
+                      src={Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : '/placeholder.jpg'} 
+                      alt={product.name} 
+                      className="h-12 w-12 rounded-lg object-cover" 
+                    />
                     <div className="ml-4">
                       <div className="text-sm font-semibold text-gray-900">{product.name}</div>
                       <div className="text-sm text-gray-500 truncate max-w-xs">{product.description}</div>
@@ -315,19 +392,23 @@ const ProductsTab: React.FC = () => {
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex items-center justify-end space-x-2">
-                    <button className="text-gray-400 hover:text-blue-600 transition-colors">
-                      <Eye className="h-4 w-4" />
-                    </button>
-                    <button className="text-gray-400 hover:text-yellow-600 transition-colors">
+                    <button 
+                      onClick={() => handleEdit(product)}
+                      className="text-gray-400 hover:text-yellow-600 transition-colors"
+                    >
                       <Edit className="h-4 w-4" />
                     </button>
-                    <button className="text-gray-400 hover:text-red-600 transition-colors">
+                    <button 
+                      onClick={() => handleDelete(product.id)}
+                      className="text-gray-400 hover:text-red-600 transition-colors"
+                    >
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 </td>
               </tr>
-            ))}
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -336,29 +417,44 @@ const ProductsTab: React.FC = () => {
       <div className="p-6 border-t border-gray-200 bg-gray-50">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
           <div>
-            <div className="text-2xl font-bold text-gray-900">{products.length}</div>
+            <div className="text-2xl font-bold text-gray-900">{filteredProducts.length}</div>
             <div className="text-sm text-gray-600">Total Products</div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-green-600">{products.filter(p => p.stock > 0).length}</div>
+            <div className="text-2xl font-bold text-green-600">{filteredProducts.filter(p => p.stock > 0).length}</div>
             <div className="text-sm text-gray-600">In Stock</div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-red-600">{products.filter(p => p.stock === 0).length}</div>
+            <div className="text-2xl font-bold text-red-600">{filteredProducts.filter(p => p.stock === 0).length}</div>
             <div className="text-sm text-gray-600">Out of Stock</div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-blue-600">{products.filter(p => p.featured).length}</div>
+            <div className="text-2xl font-bold text-blue-600">{filteredProducts.filter(p => p.featured).length}</div>
             <div className="text-sm text-gray-600">Featured</div>
           </div>
         </div>
       </div>
+
+      {/* Product Form Modal */}
+      {showForm && (
+        <ProductForm
+          product={editingProduct}
+          categories={categories.map(c => c.name)}
+          onSubmit={handleSubmit}
+          onClose={() => {
+            setShowForm(false);
+            setEditingProduct(undefined);
+          }}
+        />
+      )}
     </div>
   );
 };
 
 // Banners Tab Component
 const BannersTab: React.FC = () => {
+  const { data: banners, loading } = useSupabaseData('banners', { realtime: true });
+
   return (
     <div className="bg-white rounded-xl shadow-sm">
       <div className="p-6 border-b border-gray-200">
@@ -375,8 +471,11 @@ const BannersTab: React.FC = () => {
       </div>
 
       <div className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {banners.map((banner) => (
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">Loading banners...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {banners.map((banner) => (
             <div key={banner.id} className="border border-gray-200 rounded-lg overflow-hidden">
               <div className="aspect-video relative">
                 <img src={banner.image} alt={banner.title} className="w-full h-full object-cover" />
@@ -406,8 +505,9 @@ const BannersTab: React.FC = () => {
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -415,6 +515,8 @@ const BannersTab: React.FC = () => {
 
 // Navigation Tab Component  
 const NavigationTab: React.FC = () => {
+  const { data: navigationItems, loading } = useSupabaseData('navigation_items', { realtime: true });
+
   return (
     <div className="bg-white rounded-xl shadow-sm">
       <div className="p-6 border-b border-gray-200">
@@ -431,8 +533,11 @@ const NavigationTab: React.FC = () => {
       </div>
 
       <div className="p-6">
-        <div className="space-y-6">
-          {navigationConfig.map((navItem) => (
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">Loading navigation...</div>
+        ) : (
+          <div className="space-y-6">
+            {navigationItems.map((navItem) => (
             <div key={navItem.id} className="border border-gray-200 rounded-lg p-4">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-3">
@@ -457,8 +562,8 @@ const NavigationTab: React.FC = () => {
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {navItem.items.map((item) => (
-                  <div key={item.id} className="flex items-center space-x-3 p-2 bg-gray-50 rounded">
+                {Array.isArray(navItem.items) && navItem.items.map((item, index) => (
+                  <div key={index} className="flex items-center space-x-3 p-2 bg-gray-50 rounded">
                     {item.image && (
                       <img src={item.image} alt={item.name} className="h-8 w-8 rounded object-cover" />
                     )}
@@ -472,8 +577,9 @@ const NavigationTab: React.FC = () => {
                 ))}
               </div>
             </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -481,6 +587,8 @@ const NavigationTab: React.FC = () => {
 
 // Brands Tab Component
 const BrandsTab: React.FC = () => {
+  const { data: brands, loading } = useSupabaseData('brands', { realtime: true });
+
   return (
     <div className="bg-white rounded-xl shadow-sm">
       <div className="p-6 border-b border-gray-200">
@@ -497,8 +605,11 @@ const BrandsTab: React.FC = () => {
       </div>
 
       <div className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {brands.map((brand) => (
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">Loading brands...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {brands.map((brand) => (
             <div key={brand.id} className="border border-gray-200 rounded-lg overflow-hidden">
               <div className="aspect-square relative">
                 <img src={brand.image} alt={brand.name} className="w-full h-full object-cover" />
@@ -523,8 +634,9 @@ const BrandsTab: React.FC = () => {
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -532,34 +644,21 @@ const BrandsTab: React.FC = () => {
 
 // Orders Tab Component
 const OrdersTab: React.FC = () => {
+  const { data: orders, loading } = useSupabaseData('orders', { 
+    realtime: true,
+    orderBy: { column: 'created_at', ascending: false }
+  });
+
   // Mock order data
-  const mockOrders = [
+  const displayOrders = orders.length > 0 ? orders : [
     {
-      id: 'ORD001',
-      customerName: 'Sarah Johnson',
-      customerPhone: '+254 712 345 678',
-      items: ['Luxury Hair Serum', 'Radiance Face Cream'],
-      total: 5700,
+      id: 'sample-1',
+      customer_name: 'Sample Customer',
+      customer_phone: '+254 700 000 000',
+      items: [{ name: 'Sample Product', quantity: 1 }],
+      total: 1000,
       status: 'pending',
-      createdAt: '2024-01-15T10:30:00Z'
-    },
-    {
-      id: 'ORD002', 
-      customerName: 'Mary Wanjiku',
-      customerPhone: '+254 723 456 789',
-      items: ['Midnight Oud', 'Beard Growth Oil'],
-      total: 6300,
-      status: 'confirmed',
-      createdAt: '2024-01-15T09:15:00Z'
-    },
-    {
-      id: 'ORD003',
-      customerName: 'Grace Achieng',
-      customerPhone: '+254 734 567 890',
-      items: ['Fresh Citrus Body Spray'],
-      total: 1200,
-      status: 'delivered',
-      createdAt: '2024-01-14T16:45:00Z'
+      created_at: new Date().toISOString()
     }
   ];
 
@@ -572,7 +671,9 @@ const OrdersTab: React.FC = () => {
             <p className="text-gray-600 mt-1">Track and manage customer orders</p>
           </div>
           <div className="flex items-center space-x-3">
-            <span className="text-sm text-gray-600">Total: KSh {mockOrders.reduce((sum, order) => sum + order.total, 0).toLocaleString()}</span>
+            <span className="text-sm text-gray-600">
+              Total: KSh {displayOrders.reduce((sum, order) => sum + order.total, 0).toLocaleString()}
+            </span>
           </div>
         </div>
       </div>
@@ -591,20 +692,32 @@ const OrdersTab: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {mockOrders.map((order) => (
+            {loading ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                  Loading orders...
+                </td>
+              </tr>
+            ) : (
+              displayOrders.map((order) => (
               <tr key={order.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 text-sm font-medium text-gray-900">
                   {order.id}
                 </td>
                 <td className="px-6 py-4">
-                  <div className="text-sm font-medium text-gray-900">{order.customerName}</div>
-                  <div className="text-sm text-gray-500">{order.customerPhone}</div>
+                  <div className="text-sm font-medium text-gray-900">{order.customer_name}</div>
+                  <div className="text-sm text-gray-500">{order.customer_phone}</div>
                 </td>
                 <td className="px-6 py-4">
                   <div className="text-sm text-gray-900">
-                    {order.items.join(', ')}
+                    {Array.isArray(order.items) ? 
+                      order.items.map(item => typeof item === 'string' ? item : item.name || 'Unknown').join(', ') :
+                      'No items'
+                    }
                   </div>
-                  <div className="text-sm text-gray-500">{order.items.length} item{order.items.length > 1 ? 's' : ''}</div>
+                  <div className="text-sm text-gray-500">
+                    {Array.isArray(order.items) ? order.items.length : 0} item(s)
+                  </div>
                 </td>
                 <td className="px-6 py-4 text-sm font-medium text-gray-900">
                   KSh {order.total.toLocaleString()}
@@ -622,7 +735,7 @@ const OrdersTab: React.FC = () => {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-500">
-                  {new Date(order.createdAt).toLocaleDateString()}
+                  {new Date(order.created_at).toLocaleDateString()}
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex items-center justify-end space-x-2">
@@ -635,7 +748,8 @@ const OrdersTab: React.FC = () => {
                   </div>
                 </td>
               </tr>
-            ))}
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -644,19 +758,19 @@ const OrdersTab: React.FC = () => {
       <div className="p-6 border-t border-gray-200 bg-gray-50">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
           <div>
-            <div className="text-2xl font-bold text-gray-900">{mockOrders.length}</div>
+            <div className="text-2xl font-bold text-gray-900">{displayOrders.length}</div>
             <div className="text-sm text-gray-600">Total Orders</div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-yellow-600">{mockOrders.filter(o => o.status === 'pending').length}</div>
+            <div className="text-2xl font-bold text-yellow-600">{displayOrders.filter(o => o.status === 'pending').length}</div>
             <div className="text-sm text-gray-600">Pending</div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-blue-600">{mockOrders.filter(o => o.status === 'confirmed').length}</div>
+            <div className="text-2xl font-bold text-blue-600">{displayOrders.filter(o => o.status === 'confirmed').length}</div>
             <div className="text-sm text-gray-600">Confirmed</div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-green-600">{mockOrders.filter(o => o.status === 'delivered').length}</div>
+            <div className="text-2xl font-bold text-green-600">{displayOrders.filter(o => o.status === 'delivered').length}</div>
             <div className="text-sm text-gray-600">Delivered</div>
           </div>
         </div>
@@ -667,10 +781,14 @@ const OrdersTab: React.FC = () => {
 
 // Analytics Tab Component
 const AnalyticsTab: React.FC = () => {
+  const { data: products } = useSupabaseData('products');
+  const { data: orders } = useSupabaseData('orders');
+  const { data: categories } = useSupabaseData('categories');
+
   const analyticsData = {
-    totalRevenue: 145000,
-    totalOrders: 89,
-    averageOrderValue: 1629,
+    totalRevenue: orders.reduce((sum, order) => sum + order.total, 0),
+    totalOrders: orders.length,
+    averageOrderValue: orders.length > 0 ? orders.reduce((sum, order) => sum + order.total, 0) / orders.length : 0,
     topSellingCategory: 'Perfume',
     revenueGrowth: 15.3,
     orderGrowth: 8.7,
@@ -847,7 +965,11 @@ const AnalyticsTab: React.FC = () => {
                     <tr key={product.id} className="border-t border-gray-100">
                       <td className="py-3">
                         <div className="flex items-center space-x-3">
-                          <img src={product.images[0]} alt={product.name} className="h-10 w-10 rounded-lg object-cover" />
+                          <img 
+                            src={Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : '/placeholder.jpg'} 
+                            alt={product.name} 
+                            className="h-10 w-10 rounded-lg object-cover" 
+                          />
                           <div>
                             <div className="text-sm font-medium text-gray-900">{product.name}</div>
                           </div>

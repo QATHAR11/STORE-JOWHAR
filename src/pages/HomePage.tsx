@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Star, Instagram } from 'lucide-react';
-import { categories, products } from '../data/mockData';
+import { useSupabaseData } from '../hooks/useSupabaseData';
 import { Product } from '../types';
 import ProductCard from '../components/ProductCard';
 import WhatsAppButton from '../components/WhatsAppButton';
@@ -11,6 +11,10 @@ interface HomePageProps {
 }
 
 const HomePage: React.FC<HomePageProps> = ({ onNavigate, onViewProduct }) => {
+  const { data: categories } = useSupabaseData('categories');
+  const { data: products } = useSupabaseData('products');
+  const { data: banners } = useSupabaseData('banners');
+  
   const featuredProducts = products.filter(p => p.featured);
 
   return (

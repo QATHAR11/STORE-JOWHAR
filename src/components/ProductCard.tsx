@@ -47,7 +47,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onViewProduct }) => 
         </div>
         
         <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-          {product.description}
+          {product.description || 'No description available'}
         </p>
         
         <div className="flex justify-between items-center">
